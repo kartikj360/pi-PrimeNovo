@@ -24,11 +24,35 @@ from .model import Spec2Pep
 logger = logging.getLogger("natNovo")
 
 
+# def predict(
+#     peak_path: str,
+#     model_filename: str,
+#     config: Dict[str, Any],
+#     out_writer: None,
+# ) -> None:
+#     """
+#     Predict peptide sequences with a trained primenovo model.
+
+#     Parameters
+#     ----------
+#     peak_path : str
+#         The path with peak files for predicting peptide sequences.
+#     model_filename : str
+#         The file name of the model weights (.ckpt file).
+#     config : Dict[str, Any]
+#         The configuration options.
+#     out_writer : ms_io.MztabWriter
+#         The mzTab writer to export the prediction results.
+#     """
+#     _execute_existing(peak_path, model_filename, config, False, out_writer)
+
+
 def predict(
     peak_path: str,
     model_filename: str,
     config: Dict[str, Any],
     out_writer: None,
+    output: Optional[str] = None,
 ) -> None:
     """
     Predict peptide sequences with a trained primenovo model.
@@ -41,11 +65,12 @@ def predict(
         The file name of the model weights (.ckpt file).
     config : Dict[str, Any]
         The configuration options.
-    out_writer : ms_io.MztabWriter
-        The mzTab writer to export the prediction results.
+    out_writer : None
+        The mzTab writer to export the prediction results (currently unused).
+    output : Optional[str]
+        The base output file name for prediction results.
     """
-    _execute_existing(peak_path, model_filename, config, False, out_writer)
-
+    _execute_existing(peak_path, model_filename, config, False, out_writer, output)
 
 def evaluate(peak_path: str, model_filename: str, config: Dict[str,
                                                                Any]) -> None:
@@ -70,6 +95,7 @@ def _execute_existing(
     config: Dict[str, Any],
     annotated: bool,
     out_writer = None,
+    output: Optional[str] = None,
 ) -> None:
     """
     Predict peptide sequences with a trained primenovo model with/without
@@ -96,11 +122,31 @@ def _execute_existing(
             model_filename,
         )
         raise FileNotFoundError("Could not find the trained model weights")
+    # model = Spec2Pep().load_from_checkpoint(
+    #     model_filename,
+    #     PMC_enable=config["PMC_enable"],
+    #     mass_control_tol=config["mass_control_tol"],
+
+    #     dim_model=config["dim_model"],
+    #     n_head=config["n_head"],
+    #     dim_feedforward=config["dim_feedforward"],
+    #     n_layers=config["n_layers"],
+    #     dropout=config["dropout"],
+    #     dim_intensity=config["dim_intensity"],
+    #     custom_encoder=config["custom_encoder"],
+    #     max_length=config["max_length"],
+    #     residues=config["residues"],
+    #     max_charge=config["max_charge"],
+    #     precursor_mass_tol=config["precursor_mass_tol"],
+    #     isotope_error_range=config["isotope_error_range"],
+    #     n_beams=config["n_beams"],
+    #     n_log=config["n_log"],
+    #     out_writer=out_writer,
+    # )
     model = Spec2Pep().load_from_checkpoint(
         model_filename,
         PMC_enable=config["PMC_enable"],
         mass_control_tol=config["mass_control_tol"],
-
         dim_model=config["dim_model"],
         n_head=config["n_head"],
         dim_feedforward=config["dim_feedforward"],
@@ -116,7 +162,9 @@ def _execute_existing(
         n_beams=config["n_beams"],
         n_log=config["n_log"],
         out_writer=out_writer,
+        output=output,  # Pass output parameter
     )
+
     # Read the MS/MS spectra for which to predict peptide sequences.
     if annotated:
         peak_ext = (".mgf", ".h5", ".hdf5")

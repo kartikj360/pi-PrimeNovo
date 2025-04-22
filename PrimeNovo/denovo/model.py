@@ -130,6 +130,32 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
     """
 
     def __init__(
+        # self,
+        # custom_ctc_loss = True,
+        # dim_model: int = 512,
+        # n_head: int = 8,
+        # dim_feedforward: int = 1024,
+        # n_layers: int = 9,
+        # dropout: float = 0.0,
+        # dim_intensity: Optional[int] = None,
+        # custom_encoder: Optional[SpectrumEncoder] = None,
+        # max_length: int = 100,
+        # residues: Union[Dict[str, float], str] = "canonical",
+        # max_charge: int = 5,
+        # precursor_mass_tol: float = 50,
+        # isotope_error_range: Tuple[int, int] = (0, 1),
+        # n_beams: int = 5,
+        # n_log: int = 10,
+        # mass_control_tol: float = 0.1,
+        # tb_summarywriter: Optional[
+        #     torch.utils.tensorboard.SummaryWriter] = None,
+        # warmup_iters: int = 100_000,
+        # max_iters: int = 600_000,
+        # out_writer = None,
+        # ctc_dic: dict = {},
+        # PMC_enable = True,
+        # **kwargs: Dict,
+
         self,
         custom_ctc_loss = True,
         dim_model: int = 512,
@@ -147,13 +173,13 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         n_beams: int = 5,
         n_log: int = 10,
         mass_control_tol: float = 0.1,
-        tb_summarywriter: Optional[
-            torch.utils.tensorboard.SummaryWriter] = None,
+        tb_summarywriter: Optional[torch.utils.tensorboard.SummaryWriter] = None,
         warmup_iters: int = 100_000,
         max_iters: int = 600_000,
         out_writer = None,
         ctc_dic: dict = {},
         PMC_enable = True,
+        output: Optional[str] = None,
         **kwargs: Dict,
     ):
         super().__init__()
@@ -237,7 +263,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
 
         # Output writer during predicting.
         self.out_writer = out_writer
-    
+        self.output = output  # Store the output base name
 
     def forward(
             self, spectra: torch.Tensor,
@@ -739,34 +765,75 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
             # sys.stdout.flush()
         return loss
     
+    # def predict_step(
+    #     self, batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor], *args
+    # ) -> Tuple[torch.Tensor, torch.Tensor, List[List[str]], torch.Tensor]:
+    #     """
+    #     A single prediction step.
+
+    #     Parameters
+    #     ----------
+    #     batch : Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+    #         A batch of (i) MS/MS spectra, (ii) precursor information, (iii)
+    #         spectrum identifiers as torch Tensors.
+
+    #     Returns
+    #     -------
+    #     spectrum_idx : torch.Tensor
+    #         The spectrum identifiers.
+    #     precursors : torch.Tensor
+    #         Precursor information for each spectrum.
+    #     peptides : List[List[str]]
+    #         The predicted peptide sequences for each spectrum.
+    #     aa_scores : torch.Tensor of shape (n_spectra, length, n_amino_acids)
+    #         The individual amino acid scores for each prediction.
+    #     """
+  
+    #     peptides , inferscores = self.forward(batch[0], batch[1], batch[2])
+    #     import os
+        
+    #     file_path = "./denovo.tsv"
+    #     headers = "label\tprediction\tcharge\tscore\n"
+
+    #     # Check if the file exists and whether it contains headers
+    #     if not os.path.exists(file_path) or open(file_path, 'r').readline().strip() != headers.strip():
+    #         with open(file_path, 'a') as f:
+    #             f.write(headers)
+
+    #     # Append data
+    #     with open(file_path,'a') as f:
+    #         for i in range(len(peptides)):
+    #             sequence = ""
+    #             for el in peptides[i]:
+    #                 if len(el) > 1:
+    #                     if sequence == "" and (el[0] == '-' or el[0] == '+') :
+    #                         sequence += '[' + el + ']-'
+    #                     else:
+    #                         sequence += el[0] + '[' + el[1:] + ']'
+    #                 else:
+    #                     sequence += el
+
+    #             # print("label:",batch[2][i], ":" , peptides[i] , "\n")
+    #             if batch[2][i].replace("$", "").replace("N+0.984", "D").replace("Q+0.984", "E").replace("L","I") == "".join(peptides[i]).replace("$", "").replace("N+0.984", "D").replace("Q+0.984", "E").replace("L","I"):
+    #                 answer_is_correct = "correct"
+    #             else:
+    #                 answer_is_correct = "incorrect"
+    #             #each line output this: label (title if label is none), predictions, charge, and confidence score
+    #             f.write(batch[2][i].replace("\t", " ") + "\t" + sequence + "\t" + str(int(batch[1][i][1])) + "\t" + str(float(inferscores[i])) + "\n")
+                
+    #             #f.write("label: " + batch[2][i] + " prediction : " + "".join(peptides[i]) + "  " + answer_is_correct + "\n")
+        
+    #     return batch[2], batch[1], peptides  #batch[2]: identifier
+
+
     def predict_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor], *args
     ) -> Tuple[torch.Tensor, torch.Tensor, List[List[str]], torch.Tensor]:
-        """
-        A single prediction step.
-
-        Parameters
-        ----------
-        batch : Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
-            A batch of (i) MS/MS spectra, (ii) precursor information, (iii)
-            spectrum identifiers as torch Tensors.
-
-        Returns
-        -------
-        spectrum_idx : torch.Tensor
-            The spectrum identifiers.
-        precursors : torch.Tensor
-            Precursor information for each spectrum.
-        peptides : List[List[str]]
-            The predicted peptide sequences for each spectrum.
-        aa_scores : torch.Tensor of shape (n_spectra, length, n_amino_acids)
-            The individual amino acid scores for each prediction.
-        """
-  
-        peptides , inferscores = self.forward(batch[0], batch[1], batch[2])
+        peptides, inferscores = self.forward(batch[0], batch[1], batch[2])
         import os
-        
-        file_path = "./denovo.tsv"
+
+        # Use the output parameter or default to "./denovo.tsv"
+        file_path = f"{self.output}.tsv" if self.output else "./denovo.tsv"
         headers = "label\tprediction\tcharge\tscore\n"
 
         # Check if the file exists and whether it contains headers
@@ -775,30 +842,26 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
                 f.write(headers)
 
         # Append data
-        with open(file_path,'a') as f:
+        with open(file_path, 'a') as f:
             for i in range(len(peptides)):
                 sequence = ""
                 for el in peptides[i]:
                     if len(el) > 1:
-                        if sequence == "" and (el[0] == '-' or el[0] == '+') :
+                        if sequence == "" and (el[0] == '-' or el[0] == '+'):
                             sequence += '[' + el + ']-'
                         else:
                             sequence += el[0] + '[' + el[1:] + ']'
                     else:
                         sequence += el
 
-                # print("label:",batch[2][i], ":" , peptides[i] , "\n")
                 if batch[2][i].replace("$", "").replace("N+0.984", "D").replace("Q+0.984", "E").replace("L","I") == "".join(peptides[i]).replace("$", "").replace("N+0.984", "D").replace("Q+0.984", "E").replace("L","I"):
                     answer_is_correct = "correct"
                 else:
                     answer_is_correct = "incorrect"
-                #each line output this: label (title if label is none), predictions, charge, and confidence score
                 f.write(batch[2][i].replace("\t", " ") + "\t" + sequence + "\t" + str(int(batch[1][i][1])) + "\t" + str(float(inferscores[i])) + "\n")
-                
-                #f.write("label: " + batch[2][i] + " prediction : " + "".join(peptides[i]) + "  " + answer_is_correct + "\n")
-        
-        return batch[2], batch[1], peptides  #batch[2]: identifier
-    
+
+        return batch[2], batch[1], peptides    
+
     def on_train_epoch_end(self) -> None:
         """
         Log the training loss at the end of each epoch.

@@ -73,6 +73,10 @@ logger = logging.getLogger("PrimeNovo")
     "(optionally) prediction results (extension: .csv).",
     type=click.Path(dir_okay=False),
 )
+
+
+
+ 
 def main(
     mode: str,
     model: Optional[str],
@@ -192,14 +196,18 @@ def main(
         logger.debug("%s = %s", str(key), str(value))
 
     # Run PrimeNovo in the specified mode.
+    # if mode == "denovo":
+    #     logger.info("Predict peptide sequences with PrimeNovo.")
+    #     writer = output
+    #     # writer.set_metadata(
+    #     #     config, peak_path=peak_path, model=model, config_filename=config_fn
+    #     # )
+    #     model_runner.predict(peak_path, model, config, writer)
+    #     #writer.save()
     if mode == "denovo":
         logger.info("Predict peptide sequences with PrimeNovo.")
         writer = None
-        # writer.set_metadata(
-        #     config, peak_path=peak_path, model=model, config_filename=config_fn
-        # )
-        model_runner.predict(peak_path, model, config, writer)
-        #writer.save()
+        model_runner.predict(peak_path, model, config, writer, output=output)
     elif mode == "eval":
         logger.info("Evaluate a trained PrimeNovo model.")
         model_runner.evaluate(peak_path, model, config)
